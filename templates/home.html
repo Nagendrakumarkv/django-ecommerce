@@ -1,0 +1,29 @@
+{% extends 'base.html' %} {% block content %}
+
+<div class="bg-light p-5 mb-4 rounded-3 text-center">
+  <h1>Welcome to the Store</h1>
+  <p>Best products at best prices.</p>
+  <a href="{% url 'store' %}" class="btn btn-primary">Shop Now</a>
+</div>
+
+<div class="container">
+  <h2 class="text-center mb-4">Popular Products</h2>
+  <div class="row">
+    {% for product in products %}
+    <div class="col-md-3 mb-4">
+      <div class="card h-100">
+        <img
+          src="{{ product.images.url }}"
+          class="card-img-top"
+          alt="{{ product.product_name }}"
+        />
+        <div class="card-body">
+          <h5 class="card-title">{{ product.product_name }}</h5>
+          <p class="card-text">${{ product.price }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

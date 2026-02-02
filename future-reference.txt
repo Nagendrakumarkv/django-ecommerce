@@ -350,3 +350,201 @@ Ready for Day 3? We will take this data and build the "Storefront" (The Homepage
 -------------------------------------------------------------------------------------------------
 
 Day 3: The Storefront. Build the Homepage and "All Products" page. Learn Django's ListView.
+
+Day 3 Goal: Create the "Storefront" (Homepage) and the "Store" page to display our products to the world.
+
+To do this, we need to fetch data from the database and display it in a grid.
+
+Step 1: Configure Global Templates
+Since the "Homepage" doesn't belong to a specific app (it's the face of the whole website), we need a central place for HTML files.
+
+Create a folder named templates in your main project folder (the one containing manage.py).
+
+Open myproject/settings.py.
+
+Find the TEMPLATES section and add BASE_DIR / 'templates' to the 'DIRS' list:
+
+'DIRS': ['templates'], # <--- Change this line
+
+Step 2: The Home View (Landing Page)
+Let's create the logic for the homepage. We usually show "Featured Products" here.
+
+Create a new file myproject/views.py (inside the folder that has settings.py).
+
+Add this code:
+
+from django.shortcuts import render
+from store.models import Product
+
+def home(request):
+    # Fetch valid products (not out of stock or hidden)
+    products = Product.objects.all().filter(is_available=True)
+
+    context = {
+        'products': products,
+    }
+    return render(request, 'home.html', context)
+
+Step 3: The Store View (Catalog Page)
+Now let's create the logic for the main store page (/store/). This will eventually have filters, but for now, it lists everything.
+
+Open store/views.py.
+
+Add this code:
+
+from django.shortcuts import render, get_object_or_404
+from .models import Product
+
+def store(request):
+    products = Product.objects.all().filter(is_available=True)
+    product_count = products.count()
+
+    context = {
+        'products': products,
+        'product_count': product_count,
+    }
+    return render(request, 'store/store.html', context)
+
+Step 4: The URLs (Routing)
+We need to connect these views.
+
+App URLs: Create a new file store/urls.py.
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.store, name='store'),
+]
+
+Project URLs: Open myproject/urls.py. connect the Home view and the Store app.
+
+from django.contrib import admin
+from django.urls import path, include
+from . import views  # Import the home view from current folder
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', views.home, name='home'),          # Homepage
+    path('store/', include('store.urls')),      # Store routes
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) # (Ensure media is still here)
+
+Step 5: The Templates (The HTML)
+We will create a base.html so we don't repeat the Navbar code.
+
+Base Template: Create templates/base.html. Include Bootstrap for instant styling.
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Flipkart Clone</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Simple custom CSS for product cards */
+        .card-img-top { object-fit: cover; height: 250px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+    <a class="navbar-brand" href="{% url 'home' %}">BrandName</a>
+    <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="{% url 'store' %}">Store</a>
+        <a class="nav-link" href="#">Cart</a>
+        <a class="nav-link" href="#">Login</a>
+    </div>
+  </div>
+</nav>
+
+{% block content %}
+{% endblock %}
+
+</body>
+</html>
+
+Home Template: Create templates/home.html.
+
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="bg-light p-5 mb-4 rounded-3 text-center">
+    <h1>Welcome to the Store</h1>
+    <p>Best products at best prices.</p>
+    <a href="{% url 'store' %}" class="btn btn-primary">Shop Now</a>
+</div>
+
+<div class="container">
+    <h2 class="text-center mb-4">Popular Products</h2>
+    <div class="row">
+        {% for product in products %}
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <img src="{{ product.images.url }}" class="card-img-top" alt="{{ product.product_name }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ product.product_name }}</h5>
+                    <p class="card-text">${{ product.price }}</p>
+                    <a href="{{ product.get_url }}" class="btn btn-primary btn-sm">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+Store Template: Create store/templates/store/store.html. (Note the nested folder structure: store app -> templates folder -> store folder -> file)
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <aside class="col-md-3">
+            <div class="card">
+                <article class="card-group-item">
+                    <header class="card-header"><h6>Categories</h6></header>
+                </article>
+            </div>
+        </aside>
+
+        <main class="col-md-9">
+            <header class="border-bottom mb-4 pb-3">
+                <span class="mr-md-auto">{{ product_count }} Items found </span>
+            </header>
+
+            <div class="row">
+                {% for product in products %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <a href="{{ product.get_url }}">
+                            <img src="{{ product.images.url }}" class="card-img-top">
+                        </a>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ product.product_name }}</h5>
+                            <p class="card-text fw-bold">${{ product.price }}</p>
+                            <a href="{{ product.get_url }}" class="btn btn-outline-primary btn-block">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+Step 6: Verify Day 3
+Run server: python manage.py runserver.
+
+Go to http://127.0.0.1:8000/. Do you see the "Popular Products"?
+
+Click "Shop Now" or go to http://127.0.0.1:8000/store/. Do you see the sidebar layout?
+
+Note: If your images are broken (showing a little torn icon), ensure you actually uploaded images in the admin panel and that your MEDIA settings from Day 1 are correct.
+
+Ready for Day 4? We will click "View Details" and build the specific product page.
+
+-------------------------------------------------------------------------------------------------
+
+Day 4: Product Details. Build the individual product page (DetailView) with specifications, stock status, and related items.
+

@@ -17,9 +17,11 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from . import views  # Import the home view from current folder
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # We will include app URLs later
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    path('', views.home, name='home'),          # Homepage
+    path('store/', include('store.urls')),      # Store routes
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) # (Ensure media is still here)
