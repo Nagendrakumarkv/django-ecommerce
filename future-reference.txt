@@ -1,0 +1,216 @@
+Day 1: Architecture & Auth. Setup Django, create a Custom User Model (crucial for e-commerce), and set up the app structure (store, accounts, cart).
+
+We need a solid folder structure because this app will have many moving parts.
+
+Step 1: Setup Project & Virtual Env
+
+# Create folder
+mkdir django_flipkart
+cd django_flipkart
+
+# Virtual Env
+python -m venv venv
+# Activate it (Windows: venv\Scripts\activate | Mac: source venv/bin/activate)
+
+# Install Django and Pillow (for images)
+pip install django Pillow
+
+# Start Project
+django-admin startproject myproject .
+
+Step 2: Create Modular Apps Instead of one big app, we split functionality (Micro-app architecture).
+
+python manage.py startapp store      # Handles Products & Categories
+python manage.py startapp accounts   # Handles Users & Login
+python manage.py startapp carts      # Handles the Cart logic
+python manage.py startapp orders     # Handles Checkout & History
+
+Step 3: Register Apps & Media Settings
+
+Open settings.py. Add the apps to INSTALLED_APPS:
+
+INSTALLED_APPS = [
+    # ... defaults ...
+    'store',
+    'accounts',
+    'carts',
+    'orders',
+]
+
+Crucial for E-commerce: Configure Media (Product Images). At the bottom of settings.py:
+
+import os
+
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# Where uploaded images go
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+Connect URLs for Media. Open myproject/urls.py:
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    # We will include app URLs later
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+Step 4: The Custom User Model (Theory) Standard Django uses username. E-commerce usually uses email to login. We should set this up today because changing the User model after migrating the database is a nightmare.
+
+Step 2: The Custom User Model (The Logic)
+
+We need to tell Django: "Ignore your default User model. Use my custom 'Account' model instead."
+
+Open accounts/models.py.
+
+Delete everything and paste this robust code. This creates a user that logs in with an Email:
+
+from django.db import models
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+
+# 1. The Manager (Handles creating users)
+class MyAccountManager(BaseUserManager):
+    def create_user(self, first_name, last_name, username, email, password=None):
+        if not email:
+            raise ValueError('User must have an email address')
+        if not username:
+            raise ValueError('User must have an username')
+
+        user = self.model(
+            email = self.normalize_email(email), # Converts uppercase to lowercase
+            username = username,
+            first_name = first_name,
+            last_name = last_name,
+        )
+
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, first_name, last_name, email, username, password):
+        user = self.create_user(
+            email = self.normalize_email(email),
+            username = username,
+            password = password,
+            first_name = first_name,
+            last_name = last_name,
+        )
+        # Superuser permissions
+        user.is_admin = True
+        user.is_active = True
+        user.is_staff = True
+        user.is_superadmin = True
+        user.save(using=self._db)
+        return user
+
+# 2. The Model (The Database Table)
+class Account(AbstractBaseUser):
+    first_name      = models.CharField(max_length=50)
+    last_name       = models.CharField(max_length=50)
+    username        = models.CharField(max_length=50, unique=True)
+    email           = models.EmailField(max_length=100, unique=True)
+    phone_number    = models.CharField(max_length=50)
+
+    # Required default fields
+    date_joined     = models.DateTimeField(auto_now_add=True)
+    last_login      = models.DateTimeField(auto_now_add=True)
+    is_admin        = models.BooleanField(default=False)
+    is_staff        = models.BooleanField(default=False)
+    is_active       = models.BooleanField(default=False)
+    is_superadmin   = models.BooleanField(default=False)
+
+    # Tell Django to use Email as the login username
+    USERNAME_FIELD  = 'email'
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    objects = MyAccountManager()
+
+    def __str__(self):
+        return self.email
+
+    # Permissions (Boilerplate)
+    def has_perm(self, perm, obj=None):
+        return self.is_admin
+
+    def has_module_perms(self, add_label):
+        return True
+
+Step 3: Activate the Model
+We wrote the code, but Django doesn't know it should use this class for authentication yet.
+
+Open myproject/settings.py.
+
+Add this line anywhere (usually at the bottom):
+
+AUTH_USER_MODEL = 'accounts.Account'
+
+Step 4: Fix the Admin Panel
+Because we changed the User model, the default Django Admin panel will crash if we try to view Users. We need to tell the Admin how to display our new Account model.
+
+Open accounts/admin.py.
+
+Paste this code (This makes the password read-only and organizes the columns):
+
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import Account
+
+class AccountAdmin(UserAdmin):
+    list_display = ('email', 'first_name', 'last_name', 'username', 'last_login', 'date_joined', 'is_active')
+    list_display_links = ('email', 'first_name', 'last_name')
+    readonly_fields = ('last_login', 'date_joined')
+    ordering = ('-date_joined',)
+
+    # Essential for Custom User Model to work in Admin
+    filter_horizontal = ()
+    list_filter = ()
+    fieldsets = ()
+
+admin.site.register(Account, AccountAdmin)
+
+Step 5: Migrations (The Moment of Truth)
+This is where we commit our new architecture to the database.
+
+Make Migrations:
+
+python manage.py makemigrations
+
+You should see: Create model Account
+
+Migrate:
+
+python manage.py migrate
+
+Create Superuser: Now, test if it asks for Email instead of Username!
+
+python manage.py createsuperuser
+
+It should prompt:
+
+First name:
+
+Last name:
+
+Email: (This is now your login ID)
+
+Username:
+
+Password:
+
+Step 6: Verify Day 1
+Run server: python manage.py runserver.
+
+Go to http://127.0.0.1:8000/admin.
+
+Login with the Email and password you just created.
+
+Inside the Admin, you should see a section "Accounts". Click it, and you will see your user listed with their email address.
+
+Did you successfully login to the admin panel using your Email? If yes, your Custom Auth system is live. This is the hardest configuration step, so great job getting past it!
+
+-------------------------------------------------------------------------------------------------
+
+Day 2: The Catalog (Models). Create Category and Product models. Handle product images (Pillow library) and prices.
