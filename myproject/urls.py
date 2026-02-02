@@ -19,9 +19,12 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from . import views  # Import the home view from current folder
+from store import views as store_views  # Import store views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.home, name='home'),          # Homepage
-    path('store/', include('store.urls')),      # Store routes
+    path('', views.home, name='home'),
+    path('store/', store_views.store, name='store'),
+    path('category/<slug:category_slug>/', store_views.store, name='products_by_category'), # Filter by category
+    path('category/<slug:category_slug>/<slug:product_slug>/', store_views.product_detail, name='product_detail'), # Specific Product
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) # (Ensure media is still here)

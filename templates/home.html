@@ -12,14 +12,17 @@
     {% for product in products %}
     <div class="col-md-3 mb-4">
       <div class="card h-100">
-        <img
-          src="{{ product.images.url }}"
-          class="card-img-top"
-          alt="{{ product.product_name }}"
-        />
+        <a href="{{ product.get_url }}">
+          <img src="{{ product.images.url }}" class="card-img-top" />
+        </a>
         <div class="card-body">
           <h5 class="card-title">{{ product.product_name }}</h5>
           <p class="card-text">${{ product.price }}</p>
+          <a
+            href="{{ product.get_url }}"
+            class="btn btn-outline-primary btn-block"
+            >View Details</a
+          >
         </div>
       </div>
     </div>
