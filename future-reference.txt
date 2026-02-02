@@ -214,3 +214,139 @@ Did you successfully login to the admin panel using your Email? If yes, your Cus
 -------------------------------------------------------------------------------------------------
 
 Day 2: The Catalog (Models). Create Category and Product models. Handle product images (Pillow library) and prices.
+
+This is where the app starts to feel real. Today, we define what we are actually selling.
+
+Day 2 Goal: Build the Category and Product models so we can add items to our database.
+
+We need to handle Relationships:
+
+One Category (e.g., "Electronics") has Many Products (e.g., iPhone, Dell Laptop).
+
+This is a One-to-Many relationship (ForeignKey).
+
+Step 1: The Category Model
+We need categories to organize products. We will also use Slugs.
+
+What is a Slug? It's the URL-friendly version of a name.
+
+Name: "T-Shirts & Tops" -> Slug: t-shirts-tops
+
+URL: myshop.com/store/t-shirts-tops
+
+Open store/models.py.
+
+Add this code:
+
+from django.db import models
+from django.urls import reverse
+
+class Category(models.Model):
+    category_name = models.CharField(max_length=50, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+    description = models.TextField(max_length=255, blank=True)
+    cat_image = models.ImageField(upload_to='photos/categories', blank=True)
+
+    class Meta:
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
+    def get_url(self):
+        # We will use this later to link to the category page
+        return reverse('products_by_category', args=[self.slug])
+
+    def __str__(self):
+        return self.category_name
+
+Step 2: The Product Model
+Now, the main event. This model holds all the details of the item.
+
+In the same file (store/models.py), add the Product class below Category:
+
+class Product(models.Model):
+    product_name    = models.CharField(max_length=200, unique=True)
+    slug            = models.SlugField(max_length=200, unique=True)
+    description     = models.TextField(max_length=500, blank=True)
+    price           = models.IntegerField()
+    images          = models.ImageField(upload_to='photos/products')
+    stock           = models.IntegerField()
+    is_available    = models.BooleanField(default=True)
+
+    # The Link: Delete product if category is deleted (CASCADE)
+    category        = models.ForeignKey(Category, on_delete=models.CASCADE) 
+
+    created_date    = models.DateTimeField(auto_now_add=True)
+    modified_date   = models.DateTimeField(auto_now=True)
+
+    def get_url(self):
+        # Link to product detail page
+        return reverse('product_detail', args=[self.category.slug, self.slug])
+
+    def __str__(self):
+        return self.product_name
+
+Step 3: Supercharge the Admin Panel
+We want the "Slug" field to be filled in automatically when we type the "Product Name".
+
+Open store/admin.py.
+
+Register the models with prepopulated_fields:
+
+from django.contrib import admin
+from .models import Product, Category
+
+class CategoryAdmin(admin.ModelAdmin):
+    prepopulated_fields = {'slug': ('category_name',)}
+    list_display = ('category_name', 'slug')
+
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('product_name', 'price', 'stock', 'category', 'modified_date', 'is_available')
+    prepopulated_fields = {'slug': ('product_name',)}
+
+admin.site.register(Category, CategoryAdmin)
+admin.site.register(Product, ProductAdmin)
+
+Step 4: Database Sync
+We created new models, so we must update the database.
+
+Make Migrations:
+
+python manage.py makemigrations
+
+Output: Create model Category, Create model Product
+
+Migrate:
+
+python manage.py migrate
+
+Step 5: Add Real Data (Crucial)
+For the next few days to make sense, we need data to look at.
+
+Run the server: python manage.py runserver
+
+Go to http://127.0.0.1:8000/admin
+
+Add Categories:
+
+Create "Shirts" (Upload a random image if you have one).
+
+Create "Shoes".
+
+Notice how the 'Slug' field fills itself automatically? That's the admin magic.
+
+Add Products:
+
+Add "Blue Shirt" -> Category: Shirts -> Price: 20 -> Stock: 100
+
+Add "Running Shoes" -> Category: Shoes -> Price: 50 -> Stock: 20
+
+Step 6: Verify Day 2
+Go to your media folder in your project directory (the one we set up in settings.py). Do you see a folder structure like media/photos/products containing the images you just uploaded?
+
+If yes, your file upload system and database are perfectly linked.
+
+Ready for Day 3? We will take this data and build the "Storefront" (The Homepage) so customers can actually see it.
+
+-------------------------------------------------------------------------------------------------
+
+Day 3: The Storefront. Build the Homepage and "All Products" page. Learn Django's ListView.
