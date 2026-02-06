@@ -1,3 +1,60 @@
+Here is your 15-Day E-Commerce Sprint Plan.
+
+Phase 1: The Foundation & "The Mall" (Days 1-4)
+Focus: Setting up the database correctly and displaying products.
+
+Day 1: Architecture & Auth. Setup Django, create a Custom User Model (crucial for e-commerce), and set up the app structure (store, accounts, cart).
+
+Day 2: The Catalog (Models). Create Category and Product models. Handle product images (Pillow library) and prices.
+
+Day 3: The Storefront. Build the Homepage and "All Products" page. Learn Django's ListView.
+ 
+Day 4: Product Details. Build the individual product page (DetailView) with specifications, stock status, and related items.
+
+Phase 2: The Shopping Cart (Days 5-7)
+Focus: Managing temporary data (sessions) and cart logic.
+
+Day 5: The Cart Logic. Design the Cart and CartItem models. Learn how to store cart ID in the browser session so non-logged-in users can shop.
+
+Day 6: Add/Remove Actions. Create the views to "Add to Cart", "Remove Item", and "Update Quantity" via AJAX (no page reloads) or simple redirects.
+
+Day 7: The Cart Page. Build the UI to show the summary, total price calculation, and "Proceed to Checkout" button.
+
+Phase 3: Checkout & Orders (Days 8-11)
+Focus: The hardest part—converting a Cart into a permanent Order.
+
+Day 8: Checkout Forms. Create forms for Shipping Address and Billing info.
+
+Day 9: The Order Model. Create Order and OrderItem models. This is where money meets data.
+
+Day 10: Placing the Order. The logic to move items from Cart → Order, freeze the price (so future price changes don't affect old orders), and clear the cart.
+
+Day 11: User Dashboard. A profile page where users can see their "Order History" and status (Pending, Shipped).
+
+Phase 4: Payments & Search (Days 12-13)
+Focus: Real-world integration.
+
+Day 12: Payment Gateway. Integrate Stripe or Razorpay (Test Mode). We will learn how to handle webhooks (signals from the bank).
+
+Day 13: Search & Filter. Add a search bar and sidebar filters (Price range, Categories).
+
+Phase 5: Polish & Deploy (Days 14-15)
+Focus: Make it look like Flipkart.
+
+Day 14: UI/UX Overhaul. extensive Bootstrap styling. specific "Cards" for products, Badges for discounts, and a professional Navbar.
+
+Day 15: Deployment. Push code to GitHub and deploy the app live (using Render or Railway).
+
+Prerequisites Checklist
+Since this is more complex, we need a few extra tools installed:
+
+Pillow: Image processing library (pip install Pillow).
+
+Stripe/Razorpay Account: (Free developer account) for Day 12.
+
+Git: To save your progress daily.
+
+---------------------------------------------------------------------------------------------------
 Day 1: Architecture & Auth. Setup Django, create a Custom User Model (crucial for e-commerce), and set up the app structure (store, accounts, cart).
 
 We need a solid folder structure because this app will have many moving parts.
