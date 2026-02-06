@@ -27,4 +27,5 @@ urlpatterns = [
     path('store/', store_views.store, name='store'),
     path('category/<slug:category_slug>/', store_views.store, name='products_by_category'), # Filter by category
     path('category/<slug:category_slug>/<slug:product_slug>/', store_views.product_detail, name='product_detail'), # Specific Product
+    path('cart/', include('carts.urls')), # Add this line
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) # (Ensure media is still here)

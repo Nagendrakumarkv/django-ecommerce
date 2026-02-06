@@ -905,4 +905,253 @@ Ready for Phase 2 (The Shopping Cart)? This is where the logic gets tricky (Sess
 
 -------------------------------------------------------------------------------------------------
 
-Day 5: The Cart Logic. Design the Cart and CartItem models. Learn how to store cart ID in the browser session so non-logged-in users can shop.
+This is a big milestone. We are starting Phase 2: The Shopping Cart.
+
+Day 5 Goal: Build the "Engine" of the cart. We need to allow users to add items to a cart without logging in.
+
+How does that work? We use Sessions. When a user visits your site, Django gives them a unique "Session ID" (a cookie). We will use this ID to label their cart in the database.
+
+Step 1: The Cart Models
+We need two tables:
+
+Cart: The actual shopping basket (linked to the session ID).
+
+CartItem: The specific products inside that basket (linked to the Product).
+
+Open carts/models.py.
+
+Add this code:
+
+Python
+
+from django.db import models
+from store.models import Product
+
+class Cart(models.Model):
+    cart_id = models.CharField(max_length=250, blank=True)
+    date_added = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return self.cart_id
+
+class CartItem(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    cart    = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+    is_active = models.BooleanField(default=True)
+
+    def sub_total(self):
+        # Helper to calculate price * quantity
+        return self.product.price * self.quantity
+
+    def __str__(self):
+        return self.product.product_name
+Step 2: Database Sync
+We created new models, so we migrate.
+
+Make Migrations:
+
+Bash
+
+python manage.py makemigrations
+Output: Create model Cart, Create model CartItem
+
+Migrate:
+
+Bash
+
+python manage.py migrate
+Step 3: The Session Helper (Crucial Utility)
+We need a small "private" function that checks if the user has a session ID. If not, it creates one.
+
+Open carts/views.py.
+
+Add this function at the very top (we will use it tomorrow):
+
+Python
+
+from django.shortcuts import render, redirect
+from store.models import Product
+from .models import Cart, CartItem
+
+# Private function to get the session key (the "Cart ID")
+def _cart_id(request):
+    cart = request.session.session_key
+    if not cart:
+        cart = request.session.create()
+    return cart
+Note: The underscore _ at the start means it's a private helper function, not a view accessed by a URL.
+
+Step 4: Register in Admin
+We want to see carts being created in the backend.
+
+Open carts/admin.py.
+
+Python
+
+from django.contrib import admin
+from .models import Cart, CartItem
+
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = ('product', 'cart', 'quantity', 'is_active')
+
+admin.site.register(Cart)
+admin.site.register(CartItem, CartItemAdmin)
+Step 5: Verify Day 5
+Since we haven't built the "Add to Cart" button logic yet, we can't test this on the frontend. But we can verify the structure.
+
+Run the server.
+
+Go to http://127.0.0.1:8000/admin.
+
+Do you see the Carts app with Carts and Cart items?
+
+If yes, the "Engine" is ready.
+
+Tomorrow (Day 6) is the fun part: We connect the "Add to Cart" button to this engine using the _cart_id function we just wrote.
+
+Ready to move on?
+
+-------------------------------------------------------------------------------------------------
+
+Day 6 Goal: Implement the logic for "Add to Cart", "Decrement Quantity", and "Remove Item".
+
+We are writing the backend logic that handles the math when a user clicks buttons.
+
+Step 1: The "Add to Cart" View
+This function does the heavy lifting:
+
+Gets the product.
+
+Gets the cart (using the _cart_id helper from Day 5).
+
+Checks if the item is already there (Quantity + 1) or if it's new (Create Item).
+
+Open carts/views.py.
+
+Add the add_cart function:
+
+Python
+
+from django.shortcuts import render, redirect, get_object_or_404
+from store.models import Product
+from .models import Cart, CartItem
+from django.core.exceptions import ObjectDoesNotExist
+
+# ... keep your _cart_id function here ...
+
+def add_cart(request, product_id):
+    # 1. Get the product
+    product = Product.objects.get(id=product_id) 
+
+    # 2. Get or Create the Cart (Session based)
+    try:
+        cart = Cart.objects.get(cart_id=_cart_id(request))
+    except Cart.DoesNotExist:
+        cart = Cart.objects.create(
+            cart_id = _cart_id(request)
+        )
+    cart.save()
+
+    # 3. Add the item to the cart
+    try:
+        cart_item = CartItem.objects.get(product=product, cart=cart)
+        cart_item.quantity += 1 # If exists, increment
+        cart_item.save()
+    except CartItem.DoesNotExist:
+        cart_item = CartItem.objects.create(
+            product = product,
+            quantity = 1,
+            cart = cart,
+        )
+        cart_item.save()
+
+    return redirect('cart') # Redirect to the cart page (we will build this next)
+Step 2: The "Remove" & "Delete" Views
+We need two more functions:
+
+remove_cart: Decreases quantity by 1 (The "Minus" button).
+
+remove_cart_item: Removes the product completely (The "Trash" button).
+
+Add these to carts/views.py:
+
+Python
+
+def remove_cart(request, product_id):
+    cart = Cart.objects.get(cart_id=_cart_id(request))
+    product = get_object_or_404(Product, id=product_id)
+    cart_item = CartItem.objects.get(product=product, cart=cart)
+    
+    if cart_item.quantity > 1:
+        cart_item.quantity -= 1
+        cart_item.save()
+    else:
+        cart_item.delete() # If only 1 left, remove it
+    
+    return redirect('cart')
+
+def remove_cart_item(request, product_id):
+    cart = Cart.objects.get(cart_id=_cart_id(request))
+    product = get_object_or_404(Product, id=product_id)
+    cart_item = CartItem.objects.get(product=product, cart=cart)
+    
+    cart_item.delete() # Hard delete
+    return redirect('cart')
+Step 3: The Cart View (Placeholder)
+The redirect return redirect('cart') will fail if the view doesn't exist. Let's create a basic placeholder view.
+
+Add to carts/views.py:
+
+Python
+
+def cart(request, total=0, quantity=0, cart_items=None):
+    # This logic will be fleshed out in Day 7
+    return render(request, 'store/cart.html') 
+Step 4: The URLs
+Create carts/urls.py:
+
+Python
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.cart, name='cart'),
+    path('add_cart/<int:product_id>/', views.add_cart, name='add_cart'),
+    path('remove_cart/<int:product_id>/', views.remove_cart, name='remove_cart'),
+    path('remove_cart_item/<int:product_id>/', views.remove_cart_item, name='remove_cart_item'),
+]
+Update myproject/urls.py to include these:
+
+Python
+
+urlpatterns = [
+    # ...
+    path('cart/', include('carts.urls')), # Add this line
+]
+Step 5: Connect the Button
+Now, go back to store/templates/store/product_detail.html. Find the "Add to Cart" button we made in Day 4 and update the href.
+
+Before:
+
+HTML
+
+<a href="#" class="btn btn-primary">
+After:
+
+HTML
+
+<a href="{% url 'add_cart' single_product.id %}" class="btn btn-primary">
+Step 6: Verify Day 6
+Run the server.
+
+Go to a product detail page.
+
+Click "Add to Cart".
+
+Result: You will likely see a TemplateDoesNotExist error for store/cart.html (because we haven't built the cart page UI yet). This is good! It means the logic worked, it redirected you, and tried to load the page.
+
+Check Admin: Go to http://127.0.0.1:8000/admin/carts/cartitem/. You should see the product listed there!
+
+Great job. The backend logic is solid. Ready for Day 7? We will fix that TemplateDoesNotExist error by building the actual Shopping Cart Page with totals and taxes.
