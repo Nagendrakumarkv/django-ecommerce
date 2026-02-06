@@ -1155,3 +1155,6 @@ Result: You will likely see a TemplateDoesNotExist error for store/cart.html (be
 Check Admin: Go to http://127.0.0.1:8000/admin/carts/cartitem/. You should see the product listed there!
 
 Great job. The backend logic is solid. Ready for Day 7? We will fix that TemplateDoesNotExist error by building the actual Shopping Cart Page with totals and taxes.
+
+--------------------------------------------------------------------------------------------------------
+
