@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="text-center">Review Your Order</h1>
+<h4 class="text-center">Order Number: {{ order.order_number }}</h4>
+<h4 class="text-center">Total to Pay: ${{ grand_total }}</h4>
+{% endblock %}
