@@ -1158,3 +1158,462 @@ Great job. The backend logic is solid. Ready for Day 7? We will fix that Templat
 
 --------------------------------------------------------------------------------------------------------
 
+Day 7 Goal: Build the Shopping Cart Page.
+
+We need a page that lists what the user selected, allows them to change quantities ( + / - ), calculates the tax, and shows the final price.
+
+You likely encountered a TemplateDoesNotExist error yesterday because this file was missing. Today, we fix that.
+
+Step 1: The View Logic (Calculate Totals)
+We need to make sure the math happens before the page loads.
+
+Open carts/views.py.
+
+Update your cart function to look like this. It fetches the items and calculates the bill.
+
+Python
+
+from django.shortcuts import render, redirect, get_object_or_404
+from store.models import Product
+from .models import Cart, CartItem
+from django.core.exceptions import ObjectDoesNotExist
+
+def cart(request, total=0, quantity=0, cart_items=None):
+    try:
+        tax = 0
+        grand_total = 0
+        # 1. Get the cart using the session ID
+        cart = Cart.objects.get(cart_id=_cart_id(request))
+        # 2. Get active items
+        cart_items = CartItem.objects.filter(cart=cart, is_active=True)
+
+        # 3. Loop to calculate totals
+        for cart_item in cart_items:
+            total += (cart_item.product.price * cart_item.quantity)
+            quantity += cart_item.quantity
+
+        # 4. Calculate Tax (e.g., 2%)
+        tax = (2 * total) / 100
+        grand_total = total + tax
+
+    except ObjectDoesNotExist:
+        pass # Just ignore if cart is empty
+
+    context = {
+        'total': total,
+        'quantity': quantity,
+        'cart_items': cart_items,
+        'tax': tax,
+        'grand_total': grand_total,
+    }
+    return render(request, 'store/cart.html', context)
+Step 2: The Template (The UI)
+Now create the file that was missing.
+
+Create store/templates/store/cart.html.
+
+Paste this code. It uses Bootstrap to make a clean table layout.
+
+HTML
+
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="section-content padding-y bg">
+<div class="container">
+
+{% if not cart_items %}
+    <h2 class="text-center">Your Shopping Cart is Empty</h2>
+    <br>
+    <div class="text-center">
+        <a href="{% url 'store' %}" class="btn btn-primary">Continue Shopping</a>
+    </div>
+{% else %}
+<div class="row">
+    <aside class="col-lg-9">
+        <div class="card">
+            <table class="table table-borderless table-shopping-cart">
+                <thead class="text-muted">
+                    <tr class="small text-uppercase">
+                        <th scope="col">Product</th>
+                        <th scope="col" width="120">Quantity</th>
+                        <th scope="col" width="120">Price</th>
+                        <th scope="col" class="text-right" width="200"> </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cart_item in cart_items %}
+                    <tr>
+                        <td>
+                            <figure class="itemside align-items-center">
+                                <div class="aside"><img src="{{ cart_item.product.images.url }}" class="img-sm" style="width:80px;"></div>
+                                <figcaption class="info">
+                                    <a href="{{ cart_item.product.get_url }}" class="title text-dark">{{ cart_item.product.product_name }}</a>
+                                    <p class="text-muted small">Category: {{ cart_item.product.category }}</p>
+                                </figcaption>
+                            </figure>
+                        </td>
+                        <td>
+                            <div class="col">
+                                <div class="input-group input-spinner">
+                                    <div class="input-group-prepend">
+                                        <a href="{% url 'remove_cart' cart_item.product.id %}" class="btn btn-light" type="button"> <i class="fa fa-minus">-</i> </a>
+                                    </div>
+                                    <input type="text" class="form-control"  value="{{ cart_item.quantity }}">
+                                    <div class="input-group-append">
+                                        <a href="{% url 'add_cart' cart_item.product.id %}" class="btn btn-light" type="button"> <i class="fa fa-plus">+</i> </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="price-wrap">
+                                <var class="price">${{ cart_item.sub_total }}</var>
+                                <small class="text-muted"> ${{ cart_item.product.price }} each </small>
+                            </div> 
+                        </td>
+                        <td class="text-right">
+                            <a href="{% url 'remove_cart_item' cart_item.product.id %}" onclick="return confirm('Are you sure you want to delete this item?')" class="btn btn-danger"> Remove</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div> 
+    </aside> 
+
+    <aside class="col-lg-3">
+        <div class="card">
+            <div class="card-body">
+                <dl class="dlist-align">
+                  <dt>Total price:</dt>
+                  <dd class="text-right">${{ total }}</dd>
+                </dl>
+                <dl class="dlist-align">
+                  <dt>Tax:</dt>
+                  <dd class="text-right"> ${{ tax }}</dd>
+                </dl>
+                <dl class="dlist-align">
+                  <dt>Total:</dt>
+                  <dd class="text-right text-dark b"><strong>${{ grand_total }}</strong></dd>
+                </dl>
+                <hr>
+                <p class="text-center mb-3">
+                    <img src="{% static './images/misc/payments.png' %}" height="26">
+                </p>
+                <a href="{% url 'checkout' %}" class="btn btn-primary btn-block"> Checkout </a>
+                <a href="{% url 'store' %}" class="btn btn-light btn-block">Continue Shopping</a>
+            </div> 
+        </div> 
+    </aside> 
+</div>
+{% endif %}
+
+</div> 
+</section>
+{% endblock %}
+Step 3: Styling (Optional)
+If the +/- buttons look ugly, it's because we need a tiny bit of CSS. You can add this to your base.html inside the <head> or <style> tag:
+
+CSS
+
+.input-spinner {
+    max-width: 120px;
+    flex-wrap: nowrap;
+    display: flex;
+}
+.input-spinner input {
+    text-align: center;
+    max-width: 50px;
+    flex-basis: 50px;
+    border-color: #dee2e6;
+    border-left: 0;
+    border-right: 0;
+}
+.btn-light {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+Step 4: Verify Day 7
+Run the server.
+
+Go to the Store page.
+
+Add an item (iPhone, etc.).
+
+It should redirect you to /cart/.
+
+Test the math:
+
+Click +. Does the quantity go to 2? Does the price double?
+
+Click -. Does the quantity drop?
+
+Click Remove. Does the item disappear?
+
+Does the "Total" match the sum of prices?
+
+If this works, your Shopping Cart is 100% complete! Now users can browse and manage their basket.
+
+Ready for Day 8? We will start building the Checkout Page where they enter their address.
+
+----------------------------------------------------------------------------------------------------
+
+This is the beginning of Phase 3: Checkout & Orders. This is the bridge between "Window Shopping" and "Actual Business."
+
+Day 8 Goal: Create the Order Model and the Checkout Page (Form).
+
+Note: We are slightly adjusting the roadmap order. In Django, it is best to build the Model first, then the Form, then the View. So we will tackle the Order Model today.
+
+Step 1: The Order Model
+We need a database table to store the shipping info and the final price.
+
+Open orders/models.py.
+
+Paste this code. It handles the customer's address and the order status.
+
+Python
+
+from django.db import models
+from accounts.models import Account
+from store.models import Product
+
+class Order(models.Model):
+    STATUS = (
+        ('New', 'New'),
+        ('Accepted', 'Accepted'),
+        ('Completed', 'Completed'),
+        ('Cancelled', 'Cancelled'),
+    )
+
+    user = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+    order_number = models.CharField(max_length=20)
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    phone = models.CharField(max_length=15)
+    email = models.EmailField(max_length=50)
+    address_line_1 = models.CharField(max_length=50)
+    address_line_2 = models.CharField(max_length=50, blank=True)
+    country = models.CharField(max_length=50)
+    state = models.CharField(max_length=50)
+    city = models.CharField(max_length=50)
+    order_note = models.CharField(max_length=100, blank=True)
+    order_total = models.FloatField()
+    tax = models.FloatField()
+    status = models.CharField(max_length=10, choices=STATUS, default='New')
+    ip = models.CharField(blank=True, max_length=20)
+    is_ordered = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def full_name(self):
+        return f'{self.first_name} {self.last_name}'
+
+    def full_address(self):
+        return f'{self.address_line_1} {self.address_line_2}'
+
+    def __str__(self):
+        return self.first_name
+Sync the Database:
+
+Bash
+
+python manage.py makemigrations
+python manage.py migrate
+Step 2: The Order Form
+Now that we have the Model, Django can build the form for us automatically.
+
+Create a new file orders/forms.py.
+
+Add this code:
+
+Python
+
+from django import forms
+from .models import Order
+
+class OrderForm(forms.ModelForm):
+    class Meta:
+        model = Order
+        fields = ['first_name', 'last_name', 'phone', 'email', 'address_line_1', 'address_line_2', 'country', 'state', 'city', 'order_note']
+Step 3: The Checkout View
+This view is very similar to the cart view, but it also sends the OrderForm to the template so the user can fill it out.
+
+Open carts/views.py.
+
+Import the new form at the top:
+
+Python
+
+from orders.forms import OrderForm
+Add the checkout function:
+
+Python
+
+def checkout(request, total=0, quantity=0, cart_items=None):
+    try:
+        cart = Cart.objects.get(cart_id=_cart_id(request))
+        cart_items = CartItem.objects.filter(cart=cart, is_active=True)
+        for cart_item in cart_items:
+            total += (cart_item.product.price * cart_item.quantity)
+            quantity += cart_item.quantity
+
+        tax = (2 * total) / 100 # Assuming 2% tax
+        grand_total = total + tax
+
+    except ObjectDoesNotExist:
+        pass # Just ignore if cart is empty
+
+    context = {
+        'total': total,
+        'quantity': quantity,
+        'cart_items': cart_items,
+        'tax': tax,
+        'grand_total': grand_total,
+        'form': OrderForm(), # <--- Pass the empty form here
+    }
+    return render(request, 'store/checkout.html', context)
+Step 4: The URL
+Open carts/urls.py.
+
+Add the path:
+
+Python
+
+path('checkout/', views.checkout, name='checkout'),
+Step 5: The Template (The UI)
+This is a big file because it has the Form on the left and the Cart Summary on the right.
+
+Create store/templates/store/checkout.html.
+
+Use this structure (Bootstrap grid):
+
+HTML
+
+{% extends 'base.html' %}
+{% block content %}
+
+<section class="section-content padding-y bg">
+<div class="container">
+
+<div class="row">
+    <aside class="col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-4">Billing Address</h4>
+                <form action="#" method="POST"> {% csrf_token %}
+                    <div class="form-row row">
+                        <div class="col form-group">
+                            <label>First Name</label>
+                            {{ form.first_name }} </div>
+                        <div class="col form-group">
+                            <label>Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                    </div>
+                    <div class="form-row row">
+                        <div class="col form-group">
+                            <label>Email</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="col form-group">
+                            <label>Phone</label>
+                            {{ form.phone }}
+                        </div>
+                    </div>
+                     <div class="form-row row">
+                        <div class="col form-group">
+                            <label>Address Line 1</label>
+                            {{ form.address_line_1 }}
+                        </div>
+                        <div class="col form-group">
+                            <label>Address Line 2</label>
+                            {{ form.address_line_2 }}
+                        </div>
+                    </div>
+                     <div class="form-row row">
+                        <div class="col form-group">
+                            <label>City</label>
+                            {{ form.city }}
+                        </div>
+                        <div class="col form-group">
+                            <label>State</label>
+                            {{ form.state }}
+                        </div>
+                         <div class="col form-group">
+                            <label>Country</label>
+                            {{ form.country }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                         <label>Order Note</label>
+                         {{ form.order_note }}
+                    </div>
+            </div>
+        </div> 
+    </aside> 
+
+    <aside class="col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-borderless table-shopping-cart">
+                    <thead class="text-muted">
+                        <tr class="small text-uppercase">
+                            <th scope="col">Product</th>
+                            <th scope="col" width="120">Quantity</th>
+                            <th scope="col" width="120">Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cart_item in cart_items %}
+                        <tr>
+                            <td>
+                                <figure class="itemside align-items-center">
+                                    <div class="aside"><img src="{{ cart_item.product.images.url }}" class="img-sm" style="width:50px;"></div>
+                                    <figcaption class="info">
+                                        <a href="{{ cart_item.product.get_url }}" class="title text-dark">{{ cart_item.product.product_name }}</a>
+                                    </figcaption>
+                                </figure>
+                            </td>
+                            <td>
+                                <label>{{cart_item.quantity}}</label>
+                            </td>
+                            <td>
+                                <div class="price-wrap">
+                                    <var class="price">${{ cart_item.sub_total }}</var>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="submit" class="btn btn-primary btn-block">Place Order</button>
+                <a href="{% url 'store' %}" class="btn btn-light btn-block">Continue Shopping</a>
+                </form> </div> 
+        </div> 
+    </aside> 
+</div> 
+</div> 
+</section>
+{% endblock %}
+Step 6: Update the Cart Button
+Finally, go to store/templates/store/cart.html and make sure the "Checkout" button points to this new page.
+
+HTML
+
+<a href="{% url 'checkout' %}" class="btn btn-primary btn-block"> Checkout </a>
+Step 7: Verify Day 8
+Add items to your cart.
+
+Click "Checkout".
+
+Result: You should see a professional page.
+
+Left Side: A form asking for Name, Address, City, etc.
+
+Right Side: A summary of what you are buying.
+
+Note on styling: The form fields might look plain (standard HTML inputs). To make them look like Bootstrap inputs, we usually add a widget tweak or a simple loop in the template, but functionality is key right now.
+
+Ready for Day 9? We will handle the backend logic to actually save this order and move items from the "Cart" to the "Order" table.
