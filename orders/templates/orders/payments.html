@@ -1,6 +1,62 @@
-{% extends 'base.html' %}
-{% block content %}
+{% extends 'base.html' %} {% block content %}
 <h1 class="text-center">Review Your Order</h1>
 <h4 class="text-center">Order Number: {{ order.order_number }}</h4>
 <h4 class="text-center">Total to Pay: ${{ grand_total }}</h4>
+<button onclick="mockPayment()" class="btn btn-primary btn-block">Pay Now (Simulate)</button>
 {% endblock %}
+<script>
+  // 1. Helper to get CSRF token (Security)
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === name + "=") {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // 2. Setup Variables
+  var amount = "{{ grand_total }}";
+  var url = "{% url 'payments' %}";
+  var csrftoken = getCookie("csrftoken");
+  var orderID = "{{ order.order_number }}";
+  var payment_method = "PayPal";
+  var redirect_url = "{% url 'order_complete' %}";
+
+  // 3. Mock Payment Function (Triggered by button)
+  function mockPayment() {
+    sendData();
+  }
+
+  function sendData() {
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-type": "application/json",
+        "X-CSRFToken": csrftoken,
+      },
+      body: JSON.stringify({
+        orderID: orderID,
+        transID: "MockTransaction" + Date.now(), // Fake ID
+        payment_method: payment_method,
+        status: "COMPLETED",
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        // Redirect to success page
+        window.location.href =
+          redirect_url +
+          "?order_number=" +
+          data.order_number +
+          "&payment_id=" +
+          data.transID;
+      });
+  }
+</script>
